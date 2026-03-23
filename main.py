@@ -19,7 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("nemoclaw.log"),
+        logging.FileHandler("talon.log"),
     ],
 )
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -66,7 +66,7 @@ def main() -> None:
     for skill in skills:
         logger.info("skill_discovered", name=skill.name, description=skill.description, dir=str(skill.dir))
     logger.info(
-        "nemoclaw_started",
+        "talon_started",
         model=inference._model,
         system_prompt_tokens=_estimate_tokens(system_prompt),
         tools=len(tool_registry.definitions),

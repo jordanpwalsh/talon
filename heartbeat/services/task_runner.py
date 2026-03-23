@@ -23,7 +23,7 @@ from inference.adapters.openrouter import OpenRouterAdapter
 logger = structlog.get_logger()
 
 TASK_SYSTEM_PROMPT = """\
-You are Nemoclaw, a personal AI assistant. You are executing a scheduled task
+You are Talon, a personal AI assistant. You are executing a scheduled task
 for your owner. Complete the task described, be concise and actionable in your
 response. You have access to shell commands and file operations if needed."""
 

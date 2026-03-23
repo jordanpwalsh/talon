@@ -28,17 +28,17 @@ DEFAULT_MANAGED_CHECKS = """\
   df -h / | awk 'NR==2 {print $5}'
   ```
 
-- No uncommitted changes in nemoclaw
+- No uncommitted changes in talon
   ```sh
-  cd ~/devel/personal/nemoclaw/nemoclaw && git status --porcelain
+  cd ~/devel/personal/talon && git status --porcelain
   ```"""
 
 DEFAULT_MANAGED_TASKS = """\
 
-(reserved for future nemoclaw-shipped tasks)"""
+(reserved for future talon-shipped tasks)"""
 
 HEARTBEAT_SYSTEM_PROMPT = """\
-You are Nemoclaw's heartbeat monitor. You review periodic system check results
+You are Talon's heartbeat monitor. You review periodic system check results
 and produce brief, actionable summaries. Only flag things that genuinely need
 the user's attention. Be concise — one or two sentences per issue."""
 

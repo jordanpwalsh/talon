@@ -142,7 +142,7 @@ wheels = [
 ]
 
 [[package]]
-name = "nemoclaw"
+name = "talon"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

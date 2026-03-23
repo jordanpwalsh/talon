@@ -8,11 +8,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CONFIG_DIR = Path.home() / ".config" / "nemoclaw"
+CONFIG_DIR = Path.home() / ".config" / "talon"
 SKILLS_DIR = CONFIG_DIR / "skills"
 
 DEFAULT_SYSTEM_PROMPT = """\
-You are Nemoclaw, a personal AI assistant running on your owner's local machine.
+You are Talon, a personal AI assistant running on your owner's local machine.
 
 You have access to the local filesystem and can execute shell commands. You are running on {os}.
 
@@ -28,7 +28,7 @@ You have access to shell commands, file reading, file writing, and directory lis
 
 ## Scheduled Tasks
 
-You can manage scheduled tasks for your owner via the HEARTBEAT.md file at `~/.config/nemoclaw/HEARTBEAT.md`.
+You can manage scheduled tasks for your owner via the HEARTBEAT.md file at `~/.config/talon/HEARTBEAT.md`.
 
 The file has four sections. **Managed** sections are overwritten on startup — don't edit them. **User** sections are yours to manage:
 
@@ -161,7 +161,7 @@ def _parse_skill(skill_dir: Path) -> Skill | None:
 def discover_skills(search_paths: list[Path] | None = None) -> list[Skill]:
     """Discover skills from directories containing SKILL.md.
 
-    Searches both the project skills/ directory and ~/.config/nemoclaw/skills/.
+    Searches both the project skills/ directory and ~/.config/talon/skills/.
     """
     if search_paths is None:
         search_paths = [

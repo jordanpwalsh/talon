@@ -1,6 +1,6 @@
-# Nemoclaw Architecture
+# Talon Architecture
 
-Nemoclaw is a personal AI assistant that runs locally and communicates via Telegram. It can execute shell commands, manage files, run periodic health checks, and schedule tasks — all orchestrated by an LLM (Claude Sonnet via OpenRouter).
+Talon is a personal AI assistant that runs locally and communicates via Telegram. It can execute shell commands, manage files, run periodic health checks, and schedule tasks — all orchestrated by an LLM (Claude Sonnet via OpenRouter).
 
 ## High-Level Architecture
 
@@ -71,7 +71,7 @@ Periodic health checks and scheduled task execution.
 
 ### Skills (`skills/`)
 
-Extensible skill system discovered at startup from `./skills/` and `~/.config/nemoclaw/skills/`.
+Extensible skill system discovered at startup from `./skills/` and `~/.config/talon/skills/`.
 
 Each skill is a directory containing a `SKILL.md` file with frontmatter (name, description) and markdown content. Skills are injected into the system prompt so the LLM knows about them.
 
@@ -109,7 +109,7 @@ Telegram Message
 scheduler_loop() [60s tick]
   → Check active_hours & interval_minutes
   → If heartbeat due:
-      → Read ~/.config/nemoclaw/HEARTBEAT.md
+      → Read ~/.config/talon/HEARTBEAT.md
       → Parse checks (managed + user)
       → Run each check's shell command
       → evaluate_results() — heuristic pass/fail
@@ -138,7 +138,7 @@ scheduler_loop() [60s tick]
 |--------|---------|--------|
 | Telegram Bot API | User interface & alert delivery | `TELEGRAM_BOT_TOKEN`, `ALLOWED_TELEGRAM_IDS` |
 | OpenRouter | LLM inference (Claude Sonnet) | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
-| Local filesystem | Skill discovery, heartbeat config, state | `~/.config/nemoclaw/` |
+| Local filesystem | Skill discovery, heartbeat config, state | `~/.config/talon/` |
 | Local shell | Tool execution (subprocess) | N/A |
 
 ## Design Principles
