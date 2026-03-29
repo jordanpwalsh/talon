@@ -1,0 +1,99 @@
+{
+  "columns": [
+    {
+      "id": "0",
+      "title": "Unassigned"
+    },
+    {
+      "id": "1",
+      "title": "Todo"
+    },
+    {
+      "id": "2",
+      "title": "In Progress"
+    },
+    {
+      "id": "3",
+      "title": "Review"
+    },
+    {
+      "id": "4",
+      "title": "Done"
+    }
+  ],
+  "cards": {
+    "4b50b650-2c37-4d0c-9812-ca92dd4f0320": {
+      "id": "4b50b650-2c37-4d0c-9812-ca92dd4f0320",
+      "name": "Background task monitoring & sub-agents",
+      "description": "Add support for long-running/background process monitoring in the heartbeat task system. Key requirements: (1) Spawn background processes and track them (pid, log file, associated task), (2) Persistent sub-agent context that accumulates state across ticks (not one-shot), (3) New task type like @watch/@monitor that re-runs each tick with accumulated context, (4) Task LLM gets tool access to write back to HEARTBEAT.md for scheduling follow-ups.",
+      "acceptanceCriteria": "Can spawn a background process from a task, monitor it across ticks with accumulated LLM context, and have the task agent schedule follow-up checks",
+      "columnId": "4",
+      "sessionName": "nemoclaw",
+      "dir": "/Users/jordan/devel/personal/nemoclaw",
+      "command": "claude",
+      "worktree": false,
+      "createdAt": 1773724017617,
+      "closedAt": 1773727433906
+    },
+    "c1b88f73-40ef-44b3-97d4-6fec01d02f2d": {
+      "id": "c1b88f73-40ef-44b3-97d4-6fec01d02f2d",
+      "name": "Background task monitoring & sub-agents",
+      "description": "Add support for long-running/background process monitoring in the heartbeat task system. Key requirements: (1) Spawn background processes and track them (pid, log file, associated task), (2) Persistent sub-agent context that accumulates state across ticks (not one-shot), (3) New task type like @watch/@monitor that re-runs each tick with accumulated context, (4) Task LLM gets tool access to write back to HEARTBEAT.md for scheduling follow-ups.",
+      "acceptanceCriteria": "Can spawn a background process from a task, monitor it across ticks with accumulated LLM context, and have the task agent schedule follow-up checks",
+      "columnId": "1",
+      "sessionName": "nemoclaw",
+      "dir": "/Users/jordan/devel/personal/nemoclaw",
+      "command": "claude",
+      "worktree": false,
+      "createdAt": 1773727403146
+    },
+    "f5cd623a-4706-4d34-828f-eeadd3e80fbc": {
+      "id": "f5cd623a-4706-4d34-828f-eeadd3e80fbc",
+      "name": "Plan and implement memory",
+      "description": "Design and implement a memory system for nemoclaw",
+      "acceptanceCriteria": "",
+      "columnId": "1",
+      "sessionName": "nemoclaw",
+      "dir": "/Users/jordan/devel/personal/nemoclaw",
+      "command": "claude",
+      "worktree": false,
+      "createdAt": 1773754226352,
+      "windowId": "@2",
+      "startedAt": 1773895601610,
+      "closedAt": 1773895613127
+    },
+    "0f99754c-5352-4315-a9a4-a4f165d87d3d": {
+      "id": "0f99754c-5352-4315-a9a4-a4f165d87d3d",
+      "name": "Document architecture",
+      "description": "Write architecture documentation for nemoclaw",
+      "acceptanceCriteria": "",
+      "columnId": "3",
+      "sessionName": "nemoclaw",
+      "dir": "/Users/jordan/devel/personal/nemoclaw",
+      "command": "claude",
+      "worktree": false,
+      "createdAt": 1773770055381,
+      "windowId": "@0",
+      "startedAt": 1773865447518,
+      "closedAt": 1773895613127
+    }
+  },
+  "commands": [
+    {
+      "id": "shell",
+      "label": "Shell",
+      "template": ""
+    },
+    {
+      "id": "claude",
+      "label": "Claude Code",
+      "template": "claude"
+    },
+    {
+      "id": "opencode",
+      "label": "Open Code",
+      "template": "opencode"
+    }
+  ],
+  "idleTimeoutMs": 3000
+}
