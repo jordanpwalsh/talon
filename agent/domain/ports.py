@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from agent.domain.model import CompletionResult, ToolDefinition
+from agent.domain.model import AgentEvent, CompletionResult, ToolDefinition
 from conversation.domain.model import Conversation
 
 
@@ -15,3 +15,7 @@ class InferencePort(Protocol):
 class ActivityIndicator(Protocol):
     async def start(self) -> None: ...
     async def stop(self) -> None: ...
+
+
+class AgentEventSink(Protocol):
+    async def publish(self, event: AgentEvent) -> None: ...

@@ -18,7 +18,7 @@ from heartbeat.domain.evaluate import (
 )
 from heartbeat.domain.model import HeartbeatConfig, ScheduledTask
 from heartbeat.domain.ports import DeliveryPort
-from inference.adapters.openrouter import OpenRouterAdapter
+from config import build_inference
 
 logger = structlog.get_logger()
 
@@ -154,7 +154,7 @@ async def _execute_task(
     prompt = build_task_llm_prompt(task, shell_output)
     logger.info("task_llm_invoke", description=task.description, prompt_length=len(prompt))
 
-    task_inference = OpenRouterAdapter(system_prompt=TASK_SYSTEM_PROMPT)
+    task_inference = build_inference(system_prompt=TASK_SYSTEM_PROMPT)
     conversation = Conversation().append(Message(role="user", content=prompt))
     response_text, _ = await run_agent(task_inference, conversation, tool_registry)
 

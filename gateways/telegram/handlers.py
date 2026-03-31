@@ -1,21 +1,46 @@
 """Telegram handlers — imperative shell wiring I/O to the domain."""
 
 import asyncio
+import json
 
 import structlog
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from agent.domain.ports import InferencePort
-from agent.services.orchestrator import AgentCancelled, run_agent
+from agent.domain.model import AgentEvent
+from agent.domain.ports import AgentEventSink, InferencePort
+from agent.services.input_handler import SlashSkill, handle_input
+from agent.services.orchestrator import AgentCancelled
 from agent.tools.registry import ToolRegistry
 from gateways.telegram.formatting import md_to_telegram_html
 from gateways.telegram.typing_indicator import TelegramTypingIndicator
-from conversation.domain.model import Conversation, Message
+from conversation.domain.model import Conversation
 from conversation.services.session import SessionStore
 
 logger = structlog.get_logger()
+EMPTY_REPLY_FALLBACK = "I don't have a reply to send."
+TELEGRAM_MESSAGE_LIMIT = 4096
+VERBOSE_EVENT_LIMIT = 3000
+
+
+class TelegramVerboseEventSink:
+    def __init__(self, update: Update) -> None:
+        self._bot = update.get_bot()
+        self._chat_id = update.effective_chat.id
+
+    async def publish(self, event: AgentEvent) -> None:
+        text = _truncate_verbose_event(_format_verbose_event(event))
+        formatted = md_to_telegram_html(text)
+        try:
+            await self._bot.send_message(
+                chat_id=self._chat_id,
+                text=formatted,
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as exc:
+            logger.warning("verbose_send_failed", error=str(exc), event_kind=event.kind)
+            await self._bot.send_message(chat_id=self._chat_id, text=text)
 
 
 def make_handlers(
@@ -23,6 +48,7 @@ def make_handlers(
     tool_registry: ToolRegistry,
     session_store: SessionStore,
     allowed_ids: set[int],
+    skills: list[SlashSkill],
 ):
     """Create handler functions closed over the domain dependencies."""
 
@@ -46,21 +72,39 @@ def make_handlers(
         # Clear session on /start
         session_store.save(Conversation(session_id=str(user_id)))
         await update.message.reply_text(
-            "Hello! I'm powered by Claude. Ask me anything."
+            "Hello! I'm ready. Ask me anything."
         )
 
-    async def _run_and_reply(update: Update, user_id: int, conversation: Conversation) -> None:
+    async def _run_and_reply(update: Update, user_id: int, user_text: str) -> None:
         cancel_event = asyncio.Event()
         _cancel_events[user_id] = cancel_event
         typing = TelegramTypingIndicator(update.get_bot(), update.effective_chat.id)
         await typing.start()
 
         try:
-            response_text, conversation = await run_agent(
-                inference, conversation, tool_registry, cancel_event
-            )
-            session_store.save(conversation)
+            session_id = str(user_id)
+            conversation = session_store.get(session_id)
+            if conversation is None:
+                conversation = Conversation(session_id=session_id)
+            event_sink: AgentEventSink | None = None
+            if conversation.verbose:
+                event_sink = TelegramVerboseEventSink(update)
 
+            result = await handle_input(
+                inference=inference,
+                conversation=conversation,
+                raw_input=user_text,
+                tool_registry=tool_registry,
+                skills=skills,
+                cancel_event=cancel_event,
+                event_sink=event_sink,
+            )
+            if result.persist:
+                session_store.save(result.conversation)
+
+            response_text = _truncate_reply_text(
+                result.response_text.strip() or EMPTY_REPLY_FALLBACK
+            )
             logger.info("reply", user_id=user_id, text=response_text[:100])
             formatted = md_to_telegram_html(response_text)
             try:
@@ -104,16 +148,88 @@ def make_handlers(
             cancel_event.set()
             task.cancel()
 
-        # Load or create conversation for this user
-        session_id = str(user_id)
-        conversation = session_store.get(session_id)
-        if conversation is None:
-            conversation = Conversation(session_id=session_id)
-
-        conversation = conversation.append(Message(role="user", content=user_text))
-
         _running_tasks[user_id] = asyncio.create_task(
-            _run_and_reply(update, user_id, conversation)
+            _run_and_reply(update, user_id, user_text)
         )
 
     return handle_start, handle_message
+
+
+def _format_verbose_event(event: AgentEvent) -> str:
+    if event.kind == "assistant_message":
+        lines = ["Assistant turn:"]
+        text = event.payload.get("text", "").strip()
+        if text:
+            lines.extend(["", text])
+
+        usage = event.payload.get("usage")
+        if usage:
+            lines.extend(
+                [
+                    "",
+                    "Usage:",
+                    "```json",
+                    json.dumps(usage, indent=2, sort_keys=True),
+                    "```",
+                ]
+            )
+
+        reasoning = (event.payload.get("reasoning") or "").strip()
+        if reasoning:
+            lines.extend(
+                [
+                    "",
+                    "Reasoning:",
+                    "```",
+                    reasoning,
+                    "```",
+                ]
+            )
+
+        return "\n".join(lines)
+
+    if event.kind == "tool_call":
+        arguments = json.dumps(event.payload["arguments"], indent=2, sort_keys=True)
+        return (
+            f"Tool call: `{event.payload['tool_name']}`\n\n"
+            f"```json\n{arguments}\n```"
+        )
+
+    if event.kind == "tool_result":
+        status = "error" if event.payload["is_error"] else "ok"
+        output = event.payload["output"] or "(empty)"
+        return (
+            f"Tool result ({status}): `{event.payload['tool_name']}`\n\n"
+            f"```\n{output}\n```"
+        )
+
+    return f"Agent event: {event.kind}"
+
+
+def _truncate_verbose_event(text: str) -> str:
+    if len(text) <= VERBOSE_EVENT_LIMIT:
+        return text
+
+    marker = "\n\n[truncated for Telegram]"
+    budget = VERBOSE_EVENT_LIMIT - len(marker)
+    if budget <= 0:
+        return marker.strip()
+
+    if "```\n" in text and text.endswith("\n```"):
+        prefix, _, rest = text.partition("```\n")
+        code_body = rest[:-4]
+        code_budget = budget - len(prefix) - len("```\n\n```")
+        if code_budget > 0:
+            return f"{prefix}```\n{code_body[:code_budget]}\n```{marker}"
+
+    return text[:budget] + marker
+
+
+def _truncate_reply_text(text: str) -> str:
+    if len(text) <= TELEGRAM_MESSAGE_LIMIT:
+        return text
+    marker = "\n\n[truncated for Telegram]"
+    budget = TELEGRAM_MESSAGE_LIMIT - len(marker)
+    if budget <= 0:
+        return marker.strip()
+    return text[:budget] + marker

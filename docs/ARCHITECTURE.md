@@ -1,6 +1,6 @@
 # Talon Architecture
 
-Talon is a personal AI assistant that runs locally and communicates via Telegram. It can execute shell commands, manage files, run periodic health checks, and schedule tasks — all orchestrated by an LLM (Claude Sonnet via OpenRouter).
+Talon is a personal AI assistant that runs locally and communicates via Telegram. It can execute shell commands, manage files, run periodic health checks, and schedule tasks — all orchestrated by an LLM selected through the inference adapter layer.
 
 ## High-Level Architecture
 
@@ -22,6 +22,7 @@ The agentic loop that powers LLM-driven tool use.
 |-------|------|----------------|
 | Domain | `domain/model.py` | `ToolDefinition`, `ToolCall`, `ToolResult`, `CompletionResult` |
 | Domain | `domain/ports.py` | `InferencePort`, `ActivityIndicator` protocols |
+| Service | `services/input_handler.py` | `handle_input()` — turn execution entrypoint, including slash-command routing |
 | Service | `services/orchestrator.py` | `run_agent()` — loops: LLM call → tool dispatch → result → repeat (max 10 turns) |
 | Tools | `tools/registry.py` | `ToolRegistry` — registers tool definitions + handler functions, dispatches by name |
 | Tools | `tools/shell.py` | `run_command` tool — subprocess execution |
@@ -33,7 +34,7 @@ Session and message management with immutable data structures.
 
 | Layer | File | Responsibility |
 |-------|------|----------------|
-| Domain | `domain/model.py` | `Message`, `Conversation` (immutable tuple of messages, new instances via `.append()`) |
+| Domain | `domain/model.py` | `Message`, `Conversation` (immutable tuple of messages plus session flags such as `verbose`) |
 | Service | `services/session.py` | `InMemorySessionStore` — stores conversations keyed by chat ID |
 
 ### Inference (`inference/`)
@@ -42,6 +43,7 @@ LLM integration adapters that implement `InferencePort`.
 
 | Layer | File | Responsibility |
 |-------|------|----------------|
+| Adapter | `adapters/openai_compatible.py` | `OpenAICompatibleAdapter` — generic adapter for OpenAI-compatible endpoints |
 | Adapter | `adapters/openrouter.py` | `OpenRouterAdapter` — primary adapter, calls OpenRouter API (OpenAI-compatible) |
 | Adapter | `adapters/claude_agent_sdk.py` | `ClaudeAgentSDKAdapter` — alternative adapter |
 
@@ -83,22 +85,27 @@ Each skill is a directory containing a `SKILL.md` file with frontmatter (name, d
 Telegram Message
   → gateways/telegram/handlers.handle_message()
   → Load Conversation from InMemorySessionStore
-  → agent/services/orchestrator.run_agent()
+  → agent/services/input_handler.handle_input()
       ┌──────────────────────────────────────┐
-      │  Agentic Loop (max 10 turns)         │
+      │  Turn Execution                      │
       │                                      │
-      │  Conversation → InferencePort        │
-      │       ↓                              │
-      │  CompletionResult                    │
-      │       ↓                              │
-      │  If tool_calls:                      │
-      │    ToolRegistry.dispatch() each      │
-      │    Append ToolResults to Conversation │
-      │    Continue loop                     │
+      │  If slash command:                   │
+      │    deterministic action or           │
+      │    ephemeral model-backed command    │
       │  Else:                               │
-      │    Return final text                 │
+      │    agent/services/orchestrator.run_agent()
+      │      Conversation → InferencePort    │
+      │           ↓                          │
+      │      CompletionResult                │
+      │           ↓                          │
+      │      If tool_calls:                  │
+      │        ToolRegistry.dispatch() each  │
+      │        Append ToolResults            │
+      │        Continue loop                 │
+      │      Else:                           │
+      │        Return final text             │
       └──────────────────────────────────────┘
-  → Save Conversation to SessionStore
+  → Save Conversation to SessionStore when the turn mutates session state
   → Format response (Markdown → Telegram HTML)
   → Send reply to Telegram
 ```
@@ -137,7 +144,8 @@ scheduler_loop() [60s tick]
 | System | Purpose | Config |
 |--------|---------|--------|
 | Telegram Bot API | User interface & alert delivery | `TELEGRAM_BOT_TOKEN`, `ALLOWED_TELEGRAM_IDS` |
-| OpenRouter | LLM inference (Claude Sonnet) | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+| OpenRouter | Default LLM inference | `INFERENCE_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+| OpenAI-compatible endpoint | Self-hosted or third-party chat completions API | `INFERENCE_PROVIDER=openai_compatible`, `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_API_KEY`, `OPENAI_COMPATIBLE_MODEL` |
 | Local filesystem | Skill discovery, heartbeat config, state | `~/.config/talon/` |
 | Local shell | Tool execution (subprocess) | N/A |
 

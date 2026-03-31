@@ -31,7 +31,7 @@ When monitoring a card from a messaging channel, do NOT use `process(poll)` in a
 
 This gives you a single "done" notification with a summary, instead of 10 status updates arriving all at once.
 
-If a card's `--command` isn't set to `claude`, edit it before starting: `tukan edit <id> --command claude`. Coding cards should almost always use `--command claude`.
+If a card's `--command` isn't set to `codex`, edit it before starting: `tukan edit <id> --command codex`. Coding cards should almost always use `--command codex`.
 
 ## Concepts
 
@@ -40,7 +40,7 @@ If a card's `--command` isn't set to `claude`, edit it before starting: `tukan e
 - **Lifecycle**: Cards start in Todo. `start` creates a tmux window pointed at the task's project directory and moves the card to In Progress. `resolve` moves it to Done and optionally merges the git branch.
 - **Session**: Cards are scoped to a tmux session (auto-detected or passed with `-s`). Different sessions can track different project boards.
 - **Worktree**: Cards can optionally create a git worktree + branch, giving each task an isolated checkout for parallel work on the same repo.
-- **Pane interaction**: `tukan peek` reads a card's pane content, `tukan send` sends keystrokes — useful for AI agents or responding to prompts (like Claude Code permission requests) without switching windows.
+- **Pane interaction**: `tukan peek` reads a card's pane content, `tukan send` sends keystrokes — useful for AI agents or responding to prompts (like Codex permission requests) without switching windows.
 
 ## Commands
 
@@ -65,7 +65,7 @@ Each line shows the card's 8-char ID prefix and name.
 ```bash
 tukan add "Fix login bug"
 tukan add "New feature" -d "Implement OAuth flow" --ac "Tests pass" --dir /path/to/repo
-tukan add "Refactor auth" --command claude      # launch with claude instead of shell
+tukan add "Refactor auth" --command codex       # launch with codex instead of shell
 tukan add "Branch work" --worktree              # auto-create git worktree on start
 ```
 
@@ -73,7 +73,7 @@ Options:
 - `-d, --description <text>` — card description
 - `--ac <text>` — acceptance criteria
 - `--dir <path>` — working directory (defaults to session working dir)
-- `--command <type>` — command ID: `shell` (default) or `claude`
+- `--command <type>` — command ID: `shell` (default) or `codex`
 - `--worktree` — enable git worktree creation on start
 - `-s, --session <name>` — target session
 
@@ -219,9 +219,9 @@ Templates live in `watchers/` alongside this skill. Each command type has its ow
 
 | Template | Card command | Handles |
 |---|---|---|
+| `watchers/codex.md` | `codex` | Codex approval prompts, mode-aware (full-auto vs vanilla) |
 | `watchers/claude.md` | `claude` | Claude Code permissions, plan approval, safe Bash detection |
 | `watchers/shell.md` | `shell` | Interactive prompts, completion detection, error reporting |
-| `watchers/codex.md` | `codex` | Codex approval prompts, mode-aware (full-auto vs vanilla) |
 
 ### How to Spawn a Watcher
 
@@ -230,7 +230,7 @@ Templates live in `watchers/` alongside this skill. Each command type has its ow
    tukan show <card_id> -s <session>
    ```
 
-2. Read the matching watcher template (e.g., `watchers/claude.md` for claude cards).
+2. Read the matching watcher template (e.g., `watchers/codex.md` for codex cards).
 
 3. Replace the placeholders with card-specific values:
 
@@ -264,7 +264,7 @@ The watcher handles safe prompts silently. When it needs human input:
 
 The main session should recognize when a user's reply is meant for an active card and forward it. Context clues: the reply comes shortly after a watcher notification, or the user references the card by name/ID.
 
-### What Gets Auto-Approved (Claude Code Watcher)
+### What Gets Auto-Approved (Codex Watcher)
 
 - File operations: Read, Write, Edit, Glob, Grep
 - Web tools: WebSearch, WebFetch
@@ -273,12 +273,12 @@ The main session should recognize when a user's reply is meant for an active car
 
 ### What Gets Surfaced to User
 
-- Plan approval requests (Claude shows a plan and asks to proceed)
+- Plan approval requests (Codex shows a plan and asks to proceed)
 - Risky Bash: rm, sudo, kill, docker, curl piped to sh, git push --force
 - Unrecognized prompts
 - Errors the agent can't resolve after multiple retries
 
-### Example: Starting a Claude Card from Telegram
+### Example: Starting a Codex Card from Telegram
 
 User sends: "Start the login-fix card"
 
@@ -287,10 +287,10 @@ Orchestrator flow:
 # 1. Find the card
 tukan list -s myapp
 
-# 2. Card is 'a1b2c3d4', command is 'claude'
+# 2. Card is 'a1b2c3d4', command is 'codex'
 tukan show a1b2c3d4 -s myapp
 
-# 3. Read watchers/claude.md, fill placeholders, spawn
+# 3. Read watchers/codex.md, fill placeholders, spawn
 sessions_spawn task:"<filled template>" label:"tukan-watcher-a1b2c3d4" ...
 ```
 

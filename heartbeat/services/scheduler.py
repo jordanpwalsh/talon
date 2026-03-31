@@ -7,6 +7,7 @@ import structlog
 
 from agent.domain.ports import InferencePort
 from agent.tools.registry import ToolRegistry
+from config import get_local_now
 from heartbeat.domain.evaluate import parse_scheduled_tasks
 from heartbeat.domain.model import HeartbeatConfig
 from heartbeat.domain.ports import DeliveryPort
@@ -38,7 +39,7 @@ async def scheduler_loop(
     while True:
         await asyncio.sleep(60)
         try:
-            now = datetime.now()
+            now = get_local_now()
 
             # Read fresh file each tick (user may have edited it)
             text = config.checklist_path.read_text()

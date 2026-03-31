@@ -6,12 +6,20 @@ import structlog
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from telegram.request import HTTPXRequest
 
+from agent.services.input_handler import SlashSkill
 from agent.tools import filesystem, shell
 from agent.tools.registry import ToolRegistry
 from gateways.telegram.handlers import make_handlers
-from config import discover_skills, get_allowed_telegram_ids, get_heartbeat_config, get_system_prompt, get_telegram_token
+from config import (
+    build_inference,
+    discover_skills,
+    get_allowed_telegram_ids,
+    get_heartbeat_config,
+    get_inference_config,
+    get_system_prompt,
+    get_telegram_token,
+)
 from conversation.services.session import InMemorySessionStore
-from inference.adapters.openrouter import OpenRouterAdapter
 
 # Configure stdlib logging: root at INFO with console + file, noisy libs at WARNING
 logging.basicConfig(
@@ -51,7 +59,8 @@ def _estimate_tokens(text: str) -> int:
 
 def main() -> None:
     system_prompt = get_system_prompt()
-    inference = OpenRouterAdapter(system_prompt=system_prompt)
+    inference = build_inference(system_prompt=system_prompt)
+    inference_config = get_inference_config()
 
     tool_registry = ToolRegistry()
     tool_registry.register(shell.DEFINITION, shell.handle)
@@ -63,11 +72,20 @@ def main() -> None:
     allowed_ids = get_allowed_telegram_ids()
 
     skills = discover_skills()
+    slash_skills = [
+        SlashSkill(
+            name=skill.name,
+            description=skill.description,
+            content=skill.content,
+        )
+        for skill in skills
+    ]
     for skill in skills:
         logger.info("skill_discovered", name=skill.name, description=skill.description, dir=str(skill.dir))
     logger.info(
         "talon_started",
-        model=inference._model,
+        provider=inference_config.provider,
+        model=inference_config.model,
         system_prompt_tokens=_estimate_tokens(system_prompt),
         tools=len(tool_registry.definitions),
         tool_names=[t.name for t in tool_registry.definitions],
@@ -76,7 +94,7 @@ def main() -> None:
     )
 
     handle_start, handle_message = make_handlers(
-        inference, tool_registry, session_store, allowed_ids
+        inference, tool_registry, session_store, allowed_ids, slash_skills
     )
 
     heartbeat_config = get_heartbeat_config()
@@ -115,15 +133,30 @@ def main() -> None:
     )
     app.add_handler(CommandHandler("start", handle_start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(
+        MessageHandler(
+            filters.COMMAND & ~filters.Regex(r"^/start(?:@[\w_]+)?(?:\s|$)"),
+            handle_message,
+        )
+    )
 
     def _reload_config(signum, frame):
         nonlocal heartbeat_config
         new_prompt = get_system_prompt()
         inference._system_prompt = new_prompt
         heartbeat_config = get_heartbeat_config()
+        slash_skills[:] = [
+            SlashSkill(
+                name=skill.name,
+                description=skill.description,
+                content=skill.content,
+            )
+            for skill in discover_skills()
+        ]
         logger.info(
             "config_reloaded",
             system_prompt_tokens=_estimate_tokens(new_prompt),
+            skills=len(slash_skills),
         )
 
     signal.signal(signal.SIGHUP, _reload_config)

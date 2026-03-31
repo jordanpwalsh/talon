@@ -17,7 +17,7 @@ from heartbeat.domain.evaluate import (
 )
 from heartbeat.domain.model import CheckItem, CheckResult, HeartbeatConfig
 from heartbeat.domain.ports import DeliveryPort
-from inference.adapters.openrouter import OpenRouterAdapter
+from config import build_inference
 
 logger = structlog.get_logger()
 
@@ -143,7 +143,7 @@ async def run_heartbeat(
     if report.needs_llm:
         llm_prompt = build_llm_prompt(report)
         logger.info("heartbeat_llm_escalate", prompt_length=len(llm_prompt))
-        heartbeat_inference = OpenRouterAdapter(system_prompt=HEARTBEAT_SYSTEM_PROMPT)
+        heartbeat_inference = build_inference(system_prompt=HEARTBEAT_SYSTEM_PROMPT)
         conversation = Conversation().append(Message(role="user", content=llm_prompt))
         response_text, _ = await run_agent(heartbeat_inference, conversation, tool_registry)
         logger.info("heartbeat_llm_response", summary=response_text[:500])

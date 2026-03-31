@@ -25,6 +25,13 @@ You have access to the local filesystem and can execute shell commands. You are 
 ## Tools
 
 You have access to shell commands, file reading, file writing, and directory listing. Use them when the user's question requires interacting with the system. Don't guess at information you can look up.
+When the owner asks whether something is true, what happened, what a file says, or whether a change worked, verify it by running commands or checking the relevant files before answering. Do not assume or claim you checked if you did not.
+
+## Coding Requests
+
+Do not edit application source code directly yourself.
+If the owner wants code changed, added, or refactored, instruct them to use a coding agent via a skill instead of making the edit in-line.
+When a coding skill is available, explicitly point them to that skill. Prefer the `tukan` skill for coding tasks.
 
 ## Scheduled Tasks
 
@@ -129,6 +136,19 @@ class Skill:
     dir: Path
 
 
+@dataclass(frozen=True)
+class InferenceConfig:
+    provider: str
+    model: str
+    api_key: str
+    base_url: str | None = None
+
+
+def get_local_now() -> datetime:
+    """Return the current local time used for scheduling and prompts."""
+    return datetime.now()
+
+
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     """Parse YAML-like frontmatter from a markdown file."""
     if not text.startswith("---"):
@@ -184,11 +204,12 @@ def discover_skills(search_paths: list[Path] | None = None) -> list[Skill]:
 
 
 def get_system_prompt() -> str:
-    now = datetime.now()
+    now = get_local_now()
+    tz = datetime.now().astimezone().strftime("%Z")
     prompt = DEFAULT_SYSTEM_PROMPT.format(
         os=platform.system(),
         now=now.strftime("%Y-%m-%dT%H:%M"),
-        tz=now.astimezone().strftime("%Z"),
+        tz=tz,
     )
 
     skills = discover_skills()
@@ -222,6 +243,63 @@ def get_heartbeat_config():
         active_hours=(start_h, end_h),
         delivery_chat_ids=chat_ids,
         always_notify=always_notify,
+    )
+
+
+def get_inference_config() -> InferenceConfig:
+    provider = os.environ.get("INFERENCE_PROVIDER", "openrouter").strip().lower()
+
+    if provider == "openrouter":
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENROUTER_API_KEY is not set")
+        return InferenceConfig(
+            provider=provider,
+            model=os.environ.get("OPENROUTER_MODEL", "anthropic/claude-sonnet-4"),
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
+
+    if provider == "openai_compatible":
+        base_url = os.environ.get("OPENAI_COMPATIBLE_BASE_URL")
+        if not base_url:
+            raise RuntimeError("OPENAI_COMPATIBLE_BASE_URL is not set")
+
+        api_key = os.environ.get("OPENAI_COMPATIBLE_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_COMPATIBLE_API_KEY is not set")
+
+        model = os.environ.get("OPENAI_COMPATIBLE_MODEL") or os.environ.get("INFERENCE_MODEL")
+        if not model:
+            raise RuntimeError("OPENAI_COMPATIBLE_MODEL or INFERENCE_MODEL must be set")
+
+        return InferenceConfig(
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+        )
+
+    raise RuntimeError(f"Unsupported INFERENCE_PROVIDER: {provider}")
+
+
+def build_inference(system_prompt: str = ""):
+    from inference.adapters.openai_compatible import OpenAICompatibleAdapter
+    from inference.adapters.openrouter import OpenRouterAdapter
+
+    inference_config = get_inference_config()
+    if inference_config.provider == "openrouter":
+        return OpenRouterAdapter(
+            model=inference_config.model,
+            system_prompt=system_prompt,
+        )
+
+    return OpenAICompatibleAdapter(
+        base_url=inference_config.base_url,
+        api_key=inference_config.api_key,
+        model=inference_config.model,
+        system_prompt=system_prompt,
+        provider_name=inference_config.provider,
     )
 
 
