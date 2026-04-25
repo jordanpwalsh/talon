@@ -2,6 +2,8 @@
 
 Talon is a personal AI assistant that runs locally and communicates via Telegram. It can execute shell commands, manage files, run periodic health checks, and schedule tasks — all orchestrated by an LLM selected through the inference adapter layer.
 
+For a ports-and-adapters view, see [HEXAGONAL_ARCHITECTURE.md](/Users/jordan/devel/personal/talon/docs/HEXAGONAL_ARCHITECTURE.md).
+
 ## High-Level Architecture
 
 The project follows **hexagonal architecture** (ports & adapters) with a **functional core, imperative shell** pattern. Each bounded context has:
@@ -120,13 +122,13 @@ scheduler_loop() [60s tick]
       → Parse checks (managed + user)
       → Run each check's shell command
       → evaluate_results() — heuristic pass/fail
-      → If failures or ambiguous: escalate to LLM
-      → DeliveryPort.deliver() → Telegram
+      → If failures or ambiguous: agent/services/orchestrator.run_agent()
+      → DeliveryPort.deliver() → Telegram gateway
   → If scheduled tasks due:
       → Parse tasks (cron, @once, @at)
       → Run shell command (if present)
-      → Optionally invoke LLM for summary
-      → DeliveryPort.deliver() → Telegram
+      → Optionally invoke agent/services/orchestrator.run_agent()
+      → DeliveryPort.deliver() → Telegram gateway
       → Persist state to heartbeat_state.json
 ```
 
