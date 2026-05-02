@@ -250,6 +250,20 @@
       "createdAt": 1774834549923,
       "startedAt": 1774841975694,
       "closedAt": 1774842352121
+    },
+    "7583c9a1-f364-4c55-820a-7d8fc3eb0224": {
+      "id": "7583c9a1-f364-4c55-820a-7d8fc3eb0224",
+      "columnId": "0",
+      "name": "runtime",
+      "description": "",
+      "acceptanceCriteria": "",
+      "sessionName": "talon",
+      "dir": "/Users/jordan/devel/personal/talon",
+      "command": "shell",
+      "worktree": false,
+      "createdAt": 1775016708840,
+      "windowId": "@0",
+      "startedAt": 1775332483529
     }
   },
   "commands": [
